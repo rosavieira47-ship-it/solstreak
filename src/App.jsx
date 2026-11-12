@@ -92,6 +92,9 @@ export default function App() {
     setBusy(true); setError('');
     try {
       if (authMode === 'signup') {
+        const {data:reserved,error:lookupError} = await supabase.from('profiles').select('id').eq('nickname',clean).maybeSingle();
+        if (lookupError) throw lookupError;
+        if (reserved) throw new Error('Esse nickname já está cadastrado. Escolha outro para criar uma conta nova.');
         const {data,error:authError} = await supabase.auth.signUp({
           email:cleanEmail,
           password,
