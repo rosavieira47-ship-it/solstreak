@@ -80,7 +80,7 @@ export default function App() {
   async function enter() {
     const clean = nickname.trim().replace(/^@/,'');
     const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.split('@')[1]?.includes('.')) {
       setError('Digite um e-mail válido.'); return;
     }
     if (password.length < 8) {
