@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Sun, Flame, CalendarDays, Users, LogOut, Check, ShieldCheck, ArrowUpRight, X } from 'lucide-react';
+import { Sun, Flame, CalendarDays, Users, LogOut, Check, ShieldCheck, ArrowUpRight, X, Award, Palette, UserRound } from 'lucide-react';
 
 const URL = import.meta.env.VITE_SUPABASE_URL;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -22,6 +22,28 @@ const streakFor = (days) => {
   return n;
 };
 const initials = (s='?') => s.slice(0,1).toUpperCase();
+const AVATARS = ['☀️','🌻','🌼','🌞','🍊','🦋','🌈','🌿'];
+const AVATAR_COLORS = ['#F8DFB5','#F9D8C8','#F5E5A8','#DCEBCF','#D9E8F4','#E8DDF3'];
+const ACHIEVEMENTS = [
+  {days:3, icon:'🌱', title:'Primeiros raios', detail:'3 dias registrados'},
+  {days:7, icon:'☀️', title:'Uma semana de cuidado', detail:'7 dias registrados'},
+  {days:30, icon:'🌻', title:'Um mês de constância', detail:'30 dias registrados'},
+  {days:100, icon:'🏅', title:'Sob o mesmo sol', detail:'100 dias registrados'}
+];
+const longestStreak = (days=[]) => {
+  const ordered = [...new Set(days)].sort();
+  let best=0, current=0, previous=null;
+  ordered.forEach(day => {
+    const date = new Date(day+'T12:00:00');
+    if (previous) {
+      const diff = Math.round((date-previous)/86400000);
+      current = diff===1 ? current+1 : 1;
+    } else current=1;
+    best=Math.max(best,current);
+    previous=date;
+  });
+  return best;
+};
 
 export default function App() {
   const [session,setSession] = useState(null);
@@ -40,6 +62,7 @@ export default function App() {
   const [configured,setConfigured] = useState(!!supabase);
   const [clock,setClock] = useState(() => new Date());
   const [reminderDismissedDate,setReminderDismissedDate] = useState(() => localStorage.getItem('solstreak-reminder-dismissed') || '');
+  const [profileSaving,setProfileSaving] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60000);
@@ -59,7 +82,7 @@ export default function App() {
   async function loadData(userId) {
     const [{data:mine},{data:people},{data:logs}] = await Promise.all([
       supabase.from('profiles').select('*').eq('id',userId).maybeSingle(),
-      supabase.from('profiles').select('id,nickname,created_at'),
+      supabase.from('profiles').select('id,nickname,created_at,avatar,avatar_color'),
       supabase.from('checkins').select('user_id,checkin_date').order('checkin_date',{ascending:false})
     ]);
     setProfile(mine);
@@ -159,6 +182,22 @@ export default function App() {
 
   const myStreak = streakFor(myDays);
   const didToday = myDays.includes(todayKey());
+  const bestStreak = longestStreak(myDays);
+  const monthPrefix = todayKey().slice(0,7);
+  const monthDays = myDays.filter(d=>d.startsWith(monthPrefix)).length;
+  const monthRegularity = Math.round(monthDays/Number(todayKey().slice(-2))*100);
+  const earnedAchievements = ACHIEVEMENTS.filter(a=>myDays.length>=a.days);
+  async function saveAppearance(field,value) {
+    if (!session?.user?.id || !profile) return;
+    setProfileSaving(true); setError('');
+    const {error:e} = await supabase.from('profiles').update({[field]:value}).eq('id',session.user.id);
+    if (e) setError('Não foi possível salvar a personalização: '+e.message);
+    else {
+      setProfile(current=>({...current,[field]:value}));
+      setProfiles(current=>current.map(p=>p.id===session.user.id?{...p,[field]:value}:p));
+    }
+    setProfileSaving(false);
+  }
   const showSunReminder = !!profile && !didToday && clock.getHours() >= 11 && reminderDismissedDate !== todayKey();
   function dismissSunReminder() {
     const today = todayKey();
@@ -178,15 +217,17 @@ export default function App() {
   if (!session) return <main className="login-wrap"><div className="login-card"><div className="brand"><span className="brand-icon"><Sun size={22}/></span><span>solstreak</span></div><div className="hero-sun">☀️</div><p className="eyebrow">UMA CHAMA POR DIA</p><h1>{recoveryMode?'Crie uma nova senha.':<>Seu cuidado também<br/>pode virar hábito.</>}</h1><p className="muted">{recoveryMode?'Escolha uma senha com pelo menos 8 caracteres.':'Registre seu protetor solar, mantenha sua chama acesa e acompanhe a comunidade.'}</p>{!recoveryMode&&<div className="auth-switch"><button className={authMode==='signup'?'selected':''} onClick={()=>{setAuthMode('signup');setError('');}}>Criar conta</button><button className={authMode==='login'?'selected':''} onClick={()=>{setAuthMode('login');setError('');}}>Já tenho conta</button></div>}{!recoveryMode&&authMode==='signup'&&<><label htmlFor="nick">Escolha seu nickname</label><div className="nick-input"><span>@</span><input id="nick" value={nickname} maxLength={18} placeholder="seunome" onChange={e=>setNickname(e.target.value)}/></div></>}{!recoveryMode&&<><label htmlFor="email">E-mail</label><input className="auth-input" id="email" type="email" autoComplete="email" value={email} placeholder="voce@exemplo.com" onChange={e=>setEmail(e.target.value)}/></>}<label htmlFor="password">Senha</label><input className="auth-input" id="password" type="password" autoComplete={recoveryMode?'new-password':authMode==='signup'?'new-password':'current-password'} value={password} placeholder="Pelo menos 8 caracteres" onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&(recoveryMode?updatePassword():enter())}/><button className="primary full" onClick={recoveryMode?updatePassword:enter} disabled={busy}>{busy?'Aguarde…':recoveryMode?'Salvar nova senha':authMode==='signup'?'Criar minha conta':'Entrar'} <ArrowUpRight size={17}/></button>{!recoveryMode&&authMode==='login'&&<button className="text-action" onClick={recoverPassword} disabled={busy}>Esqueci minha senha</button>}{error&&<p className="error">{error}</p>}<p className="small center">Seu nickname e seus registros serão públicos. Seu e-mail e sua senha não serão exibidos.</p></div></main>;
 
   return <div className="app-shell">
-    <header className="topbar"><div className="brand"><span className="brand-icon"><Sun size={22}/></span><span>solstreak</span></div><div className="top-user"><span className="avatar">{initials(profile?.nickname)}</span><b>@{profile?.nickname || 'perfil'}</b><button className="icon-btn" title="Sair" onClick={leave}><LogOut size={17}/></button></div></header>
+    <header className="topbar"><div className="brand"><span className="brand-icon"><Sun size={22}/></span><span>solstreak</span></div><div className="top-user"><span className="avatar" style={{background:profile?.avatar_color || AVATAR_COLORS[0]}}>{profile?.avatar || initials(profile?.nickname)}</span><b>@{profile?.nickname || 'perfil'}</b><button className="icon-btn" title="Sair" onClick={leave}><LogOut size={17}/></button></div></header>
     <main className="content">
-      <div className="welcome"><div><p className="eyebrow">SEU CANTINHO DE SOL</p><h1>Oi, @{profile?.nickname}! <span>☀️</span></h1><p className="muted">O uso diário do protetor solar ajuda a prevenir danos causados pela exposição aos raios UV.<br/>Registre seu cuidado e acompanhe sua constância.</p></div><div className="date-pill"><CalendarDays size={15}/>{new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'})}</div></div>
+      <div className="welcome"><div><h1>Oi, @{profile?.nickname}! <span>☀️</span></h1><p className="muted">O uso diário do protetor solar ajuda a prevenir danos causados pela exposição aos raios UV.<br/>Registre seu cuidado e acompanhe sua constância.</p></div><div className="date-pill"><CalendarDays size={15}/>{new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'})}</div></div>
       {showSunReminder && <aside className="sun-reminder" role="status"><span className="reminder-sun">☀️</span><div className="reminder-copy"><strong>Um lembrete de cuidado!</strong><p>Já passou protetor solar hoje? Quando usar, registre seu cuidado no Solstreak.</p></div><button className="reminder-close" onClick={dismissSunReminder} aria-label="Fechar lembrete" title="Fechar lembrete"><X size={18}/></button></aside>}
       <section className="streak-card"><div className="streak-copy"><span className="streak-label"><Flame size={17}/> SUA OFENSIVA</span><div className="streak-number">{myStreak}<small> {myStreak===1?'dia':'dias'}</small></div><p>{myStreak ? 'Sua chama está acesa. Continue no seu ritmo!' : 'Hoje pode ser o começo de uma nova sequência.'}</p></div><div className="flame-art">🔥</div><div className="streak-bottom"><span>☀️ {myDays.length} dias registrados no total</span><span>{myStreak>=7?'Uma semana de cuidado!':'Cada registro conta.'}</span></div></section>
       <section className="check-card"><div className="check-icon"><ShieldCheck size={23}/></div><div className="check-text"><h2>{didToday?'Registro de hoje feito!':'Você usou protetor hoje?'}</h2><p>{didToday?'Seu dia já está registrado. Até amanhã!':'Marque quando tiver usado protetor solar hoje.'}</p></div><button className={didToday?'done':'primary'} onClick={checkIn} disabled={busy||didToday}>{didToday?<><Check size={17}/> Registrado</>:busy?'Salvando…':'Usei hoje!'}</button></section>
       <nav className="tabs"><button className={tab==='inicio'?'active':''} onClick={()=>setTab('inicio')}><Sun size={16}/> Meu progresso</button><button className={tab==='ranking'?'active':''} onClick={()=>setTab('ranking')}><Users size={16}/> Comunidade</button></nav>
-      {tab==='inicio' ? <div className="grid-main"><section className="panel calendar-panel"><div className="panel-heading"><div><p className="eyebrow">SEU HISTÓRICO</p><h2>Calendário de proteção</h2></div><span className="month-label">{new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</span></div><div className="calendar">{['D','S','T','Q','Q','S','S'].map((d,i)=><span className="weekday" key={i}>{d}</span>)}{monthCells.map((day,i)=><span key={i} className={`day ${day&&myDays.includes(day)?'marked':''} ${day===todayKey()?'today':''}`}>{day?Number(day.slice(-2)):''}</span>)}</div><p className="legend"><i/> Dia com registro</p></section><section className="panel stats-panel"><p className="eyebrow">SEUS NÚMEROS</p><h2>Passo a passo</h2><div className="stat"><span>🔥</span><div><b>{myStreak} dias</b><small>Ofensiva atual</small></div></div><div className="stat"><span>☀️</span><div><b>{myDays.length} dias</b><small>Registros no total</small></div></div><div className="stat"><span>🏆</span><div><b>{myDays.filter(d=>d.startsWith(todayKey().slice(0,7))).length?Math.round(myDays.filter(d=>d.startsWith(todayKey().slice(0,7))).length/Number(todayKey().slice(-2))*100):0}%</b><small>Regularidade dos dias registrados</small></div></div></section></div>
-      : <section className="panel leaderboard"><div className="panel-heading"><div><p className="eyebrow">TODO MUNDO NO MESMO SOL</p><h2>Ranking da comunidade</h2></div><span className="people-count"><Users size={15}/>{profiles.length} pessoas</span></div><p className="muted">Ordenado pela ofensiva atual. O histórico acumulado continua salvo.</p>{sorted.map((p,i)=><div className="rank-row" key={p.id}><span className={`rank-pos pos-${i+1}`}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span><span className="avatar">{initials(p.nickname)}</span><div className="rank-name"><b>@{p.nickname}</b><small>{p.days.length} dias registrados no total</small></div><strong><Flame size={17}/>{p.streak}</strong></div>)}</section>}
+      {tab==='inicio' ? <div className="grid-main"><section className="panel calendar-panel"><div className="panel-heading"><div><p className="eyebrow">SEU HISTÓRICO</p><h2>Calendário de proteção</h2></div><span className="month-label">{new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</span></div><div className="calendar">{['D','S','T','Q','Q','S','S'].map((d,i)=><span className="weekday" key={i}>{d}</span>)}{monthCells.map((day,i)=><span key={i} className={`day ${day&&myDays.includes(day)?'marked':''} ${day===todayKey()?'today':''}`}>{day?Number(day.slice(-2)):''}</span>)}</div><p className="legend"><i/> Dia com registro</p></section><section className="panel stats-panel"><p className="eyebrow">SEUS NÚMEROS</p><h2>Passo a passo</h2><div className="stat"><span>🔥</span><div><b>{myStreak} dias</b><small>Ofensiva atual</small></div></div><div className="stat"><span>🏆</span><div><b>{bestStreak} dias</b><small>Melhor sequência</small></div></div><div className="stat"><span>☀️</span><div><b>{myDays.length} dias</b><small>Registros no total</small></div></div><div className="stat"><span>📅</span><div><b>{monthRegularity}%</b><small>Regularidade neste mês ({monthDays} registros)</small></div></div></section></div>
+        <section className="panel achievements-panel"><div className="panel-heading"><div><p className="eyebrow">CADA CONQUISTA CONTA</p><h2>Suas medalhas</h2></div><span className="people-count">{earnedAchievements.length}/{ACHIEVEMENTS.length} desbloqueadas</span></div><div className="achievement-grid">{ACHIEVEMENTS.map(item=><div className={myDays.length>=item.days?'achievement earned':'achievement locked'} key={item.days}><span className="achievement-icon">{item.icon}</span><b>{item.title}</b><small>{item.detail}</small>{myDays.length>=item.days&&<span className="earned-label">Conquistada</span>}</div>)}</div></section>
+        <section className="panel appearance-panel"><div className="panel-heading"><div><p className="eyebrow">SUA IDENTIDADE</p><h2>Personalize seu perfil</h2></div><UserRound size={20} color="#b17b3e"/></div><div className="appearance-group"><span className="appearance-label">Escolha seu avatar</span><div className="avatar-options">{AVATARS.map(avatar=><button key={avatar} className={profile?.avatar===avatar?'avatar-option selected':'avatar-option'} onClick={()=>saveAppearance('avatar',avatar)} disabled={profileSaving} aria-label={'Escolher avatar '+avatar}>{avatar}</button>)}</div></div><div className="appearance-group"><span className="appearance-label"><Palette size={14}/> Cor de fundo</span><div className="color-options">{AVATAR_COLORS.map(color=><button key={color} className={profile?.avatar_color===color?'color-option selected':'color-option'} style={{background:color}} onClick={()=>saveAppearance('avatar_color',color)} disabled={profileSaving} aria-label={'Escolher cor '+color}/>)}</div></div><p className="appearance-note">Sua escolha também aparece ao lado do seu nickname no ranking.</p></section>
+      : <section className="panel leaderboard"><div className="panel-heading"><div><p className="eyebrow">TODO MUNDO NO MESMO SOL</p><h2>Ranking da comunidade</h2></div><span className="people-count"><Users size={15}/>{profiles.length} pessoas</span></div><p className="muted">Ordenado pela ofensiva atual. O histórico acumulado continua salvo.</p>{sorted.map((p,i)=><div className="rank-row" key={p.id}><span className={`rank-pos pos-${i+1}`}>{i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span><span className="avatar" style={{background:p.avatar_color || AVATAR_COLORS[0]}}>{p.avatar || initials(p.nickname)}</span><div className="rank-name"><b>@{p.nickname}</b><small>{p.days.length} dias registrados no total · {ACHIEVEMENTS.filter(a=>p.days.length>=a.days).length} medalhas</small></div><strong><Flame size={17}/>{p.streak}</strong></div>)}</section>}
       <footer><span><Sun size={14}/> Solstreak</span><span>Pequenos cuidados, grandes constâncias.</span></footer>
       {error&&<div className="toast">{error}</div>}
     </main>
