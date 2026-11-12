@@ -105,7 +105,7 @@ export default function App() {
           setSession(data.session);
           setError('');
         } else {
-          setError('Cadastro iniciado! Confira seu e-mail e confirme o endereço para ativar sua conta. Depois, entre com e-mail e senha.');
+          setError('Sua conta foi criada, mas o acesso automático não foi iniciado. Tente entrar com seu e-mail e senha.');
         }
       } else {
         const {data,error:authError} = await supabase.auth.signInWithPassword({email:cleanEmail,password});
