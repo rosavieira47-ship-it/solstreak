@@ -3,3 +3,28 @@
 
 /* Lembrete diário de proteção solar */
 .sun-reminder{display:flex;align-items:center;gap:13px;background:#fff5dc;border:1px solid #f0d49b;border-radius:16px;padding:15px 16px;margin:-5px 0 18px;box-shadow:0 5px 16px #a86b1a0d}.reminder-sun{font-size:27px;flex-shrink:0}.reminder-copy{flex:1}.reminder-copy strong{display:block;color:#754719;font:800 13px Manrope,sans-serif}.reminder-copy p{margin:4px 0 0;color:#8e704b;font-size:12px;line-height:1.5}.reminder-close{width:32px;height:32px;display:grid;place-items:center;flex-shrink:0;border-radius:9px;background:transparent;color:#9b784b}.reminder-close:hover{background:#f6e7c5}@media(max-width:680px){.sun-reminder{align-items:flex-start;padding:13px}.reminder-close{margin:-3px -4px 0 0}}
+
+
+/* Conquistas e personalização de perfil */
+.achievements-panel,.appearance-panel{margin-top:16px}
+.achievement-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.achievement{min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:14px 9px;border:1px solid #f0e5d2;border-radius:14px;background:#fffaf2}
+.achievement-icon{font-size:28px;filter:grayscale(1);opacity:.45}
+.achievement.earned{background:#fff6df;border-color:#efd49d}
+.achievement.earned .achievement-icon{filter:none;opacity:1}
+.achievement b{font:800 11px Manrope,sans-serif;color:#654523;line-height:1.35}
+.achievement small{font-size:10px;color:#a18d73;line-height:1.35}
+.earned-label{font-size:9px;font-weight:800;color:#8c642c;background:#f8e7bc;padding:4px 7px;border-radius:20px}
+.achievement.locked{opacity:.7}
+.appearance-panel .panel-heading{margin-bottom:17px}
+.appearance-group{margin-top:15px}
+.appearance-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:#806747;margin-bottom:10px}
+.avatar-options,.color-options{display:flex;flex-wrap:wrap;gap:9px}
+.avatar-option{width:42px;height:42px;border-radius:13px;background:#fff6e6;border:1px solid #efdfc6;font-size:22px;display:grid;place-items:center}
+.avatar-option.selected{border:2px solid #bd7629;box-shadow:0 0 0 3px #f8e7cf}
+.color-option{width:31px;height:31px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #e6d8c4}
+.color-option.selected{box-shadow:0 0 0 2px #a65e22}
+.avatar-option:disabled,.color-option:disabled{opacity:.55;cursor:wait}
+.appearance-note{font-size:10px;color:#a18d73;margin:14px 0 0}
+.top-user .avatar,.rank-row .avatar{font-size:18px}
+@media(max-width:680px){.achievement-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.achievement{padding:13px 7px}.avatar-options{gap:7px}}
