@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Sun, Flame, CalendarDays, Users, LogOut, Check, Sparkles, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { Sun, Flame, CalendarDays, Users, LogOut, Check, ShieldCheck, ArrowUpRight, X } from 'lucide-react';
 
 const URL = import.meta.env.VITE_SUPABASE_URL;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -38,6 +38,13 @@ export default function App() {
   const [error,setError] = useState('');
   const [tab,setTab] = useState('inicio');
   const [configured,setConfigured] = useState(!!supabase);
+  const [clock,setClock] = useState(() => new Date());
+  const [reminderDismissedDate,setReminderDismissedDate] = useState(() => localStorage.getItem('solstreak-reminder-dismissed') || '');
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(new Date()), 60000);
+    return () => window.clearInterval(timer);
+  },[]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -152,6 +159,12 @@ export default function App() {
 
   const myStreak = streakFor(myDays);
   const didToday = myDays.includes(todayKey());
+  const showSunReminder = !!profile && !didToday && clock.getHours() >= 11 && reminderDismissedDate !== todayKey();
+  function dismissSunReminder() {
+    const today = todayKey();
+    localStorage.setItem('solstreak-reminder-dismissed', today);
+    setReminderDismissedDate(today);
+  }
   const sorted = useMemo(() => profiles.map(p => ({...p, days:allDays[p.id] || [], streak:streakFor(allDays[p.id] || [])}))
     .sort((a,b) => b.streak-a.streak || b.days.length-a.days.length || a.nickname.localeCompare(b.nickname)),[profiles,allDays]);
   const monthCells = useMemo(() => {
@@ -168,6 +181,7 @@ export default function App() {
     <header className="topbar"><div className="brand"><span className="brand-icon"><Sun size={22}/></span><span>solstreak</span></div><div className="top-user"><span className="avatar">{initials(profile?.nickname)}</span><b>@{profile?.nickname || 'perfil'}</b><button className="icon-btn" title="Sair" onClick={leave}><LogOut size={17}/></button></div></header>
     <main className="content">
       <div className="welcome"><div><p className="eyebrow">SEU CANTINHO DE SOL</p><h1>Oi, @{profile?.nickname}! <span>☀️</span></h1><p className="muted">Um pequeno cuidado, um dia de cada vez.</p></div><div className="date-pill"><CalendarDays size={15}/>{new Date().toLocaleDateString('pt-BR',{weekday:'short',day:'numeric',month:'short'})}</div></div>
+      {showSunReminder && <aside className="sun-reminder" role="status"><span className="reminder-sun">☀️</span><div className="reminder-copy"><strong>Um lembrete de cuidado!</strong><p>Já passou protetor solar hoje? Quando usar, registre seu cuidado no Solstreak.</p></div><button className="reminder-close" onClick={dismissSunReminder} aria-label="Fechar lembrete" title="Fechar lembrete"><X size={18}/></button></aside>}
       <section className="streak-card"><div className="streak-copy"><span className="streak-label"><Flame size={17}/> SUA OFENSIVA</span><div className="streak-number">{myStreak}<small> {myStreak===1?'dia':'dias'}</small></div><p>{myStreak ? 'Sua chama está acesa. Continue no seu ritmo!' : 'Hoje pode ser o começo de uma nova sequência.'}</p></div><div className="flame-art">🔥</div><div className="streak-bottom"><span>☀️ {myDays.length} dias registrados no total</span><span>{myStreak>=7?'Uma semana de cuidado!':'Cada registro conta.'}</span></div></section>
       <section className="check-card"><div className="check-icon"><ShieldCheck size={23}/></div><div className="check-text"><h2>{didToday?'Registro de hoje feito!':'Você usou protetor hoje?'}</h2><p>{didToday?'Seu dia já está registrado. Até amanhã!':'Marque quando tiver usado protetor solar hoje.'}</p></div><button className={didToday?'done':'primary'} onClick={checkIn} disabled={busy||didToday}>{didToday?<><Check size={17}/> Registrado</>:busy?'Salvando…':'Usei hoje!'}</button></section>
       <nav className="tabs"><button className={tab==='inicio'?'active':''} onClick={()=>setTab('inicio')}><Sun size={16}/> Meu progresso</button><button className={tab==='ranking'?'active':''} onClick={()=>setTab('ranking')}><Users size={16}/> Comunidade</button></nav>
