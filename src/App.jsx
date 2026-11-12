@@ -30,6 +30,9 @@ export default function App() {
   const [myDays,setMyDays] = useState([]);
   const [allDays,setAllDays] = useState({});
   const [nickname,setNickname] = useState('');
+  const [email,setEmail] = useState('');
+  const [password,setPassword] = useState('');
+  const [authMode,setAuthMode] = useState('signup');
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
   const [tab,setTab] = useState('inicio');
@@ -56,27 +59,65 @@ export default function App() {
     setMyDays(grouped[userId] || []);
   }
 
-  useEffect(() => { if (session?.user?.id) loadData(session.user.id); },[session]);
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    (async () => {
+      const {data: existing} = await supabase.from('profiles').select('id').eq('id',session.user.id).maybeSingle();
+      const savedNickname = session.user.user_metadata?.nickname;
+      if (!existing && savedNickname) {
+        const {error:profileError} = await supabase.from('profiles').insert({id:session.user.id,nickname:savedNickname});
+        if (profileError && profileError.code !== '23505') setError('Sua conta entrou, mas não foi possível criar o perfil: ' + profileError.message);
+        if (profileError?.code === '23505') setError('Esse nickname já está em uso. Entre em contato para recuperar o perfil ou escolha outro no cadastro.');
+      }
+      await loadData(session.user.id);
+    })();
+  },[session]);
 
   async function enter() {
     const clean = nickname.trim().replace(/^@/,'');
-    if (!clean || clean.length < 3 || clean.length > 18 || !/^[a-zA-Z0-9_.-]+$/.test(clean)) {
-      setError('Use de 3 a 18 caracteres: letras, números, ponto, hífen ou underline.'); return;
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(cleanEmail)) {
+      setError('Digite um e-mail válido.'); return;
+    }
+    if (password.length < 8) {
+      setError('A senha precisa ter pelo menos 8 caracteres.'); return;
+    }
+    if (authMode === 'signup' && (!clean || clean.length < 3 || clean.length > 18 || !/^[a-zA-Z0-9_.-]+$/.test(clean))) {
+      setError('Use um nickname de 3 a 18 caracteres: letras, números, ponto, hífen ou underline.'); return;
     }
     setBusy(true); setError('');
     try {
-      const {data,error:authError} = await supabase.auth.signInAnonymously();
-      if (authError) throw authError;
-      const {error:profileError} = await supabase.from('profiles').insert({id: data.user.id, nickname: clean});
-      if (profileError) {
-        if (profileError.code === '23505') throw new Error('Esse nickname já está em uso. Escolha outro.');
-        throw profileError;
+      if (authMode === 'signup') {
+        const {data,error:authError} = await supabase.auth.signUp({
+          email:cleanEmail,
+          password,
+          options:{data:{nickname:clean}}
+        });
+        if (authError) throw authError;
+        if (data.session) {
+          setSession(data.session);
+          setError('');
+        } else {
+          setError('Cadastro iniciado! Confira seu e-mail e confirme o endereço para ativar sua conta. Depois, entre com e-mail e senha.');
+        }
+      } else {
+        const {data,error:authError} = await supabase.auth.signInWithPassword({email:cleanEmail,password});
+        if (authError) throw authError;
+        setSession(data.session);
       }
-      await loadData(data.user.id);
     } catch(e) {
-      setError(e.message || 'Não foi possível entrar. Confira se o acesso anônimo está ativado no Supabase.');
-      if (supabase) await supabase.auth.signOut();
+      const message = e.message || 'Não foi possível concluir o acesso.';
+      setError(message.includes('duplicate key') || message.includes('already registered') ? 'Este e-mail já possui cadastro. Selecione “Já tenho conta” para entrar.' : message);
     } finally { setBusy(false); }
+  }
+
+  async function recoverPassword() {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) { setError('Digite seu e-mail para receber o link de recuperação.'); return; }
+    setBusy(true); setError('');
+    const {error:e} = await supabase.auth.resetPasswordForEmail(cleanEmail,{redirectTo:window.location.origin});
+    setError(e ? e.message : 'Se houver uma conta para este e-mail, você receberá um link para redefinir a senha.');
+    setBusy(false);
   }
 
   async function checkIn() {
@@ -105,7 +146,7 @@ export default function App() {
 
   if (!configured) return <main className="setup"><div className="setup-card"><div className="sun-mark"><Sun/></div><p className="eyebrow">PRIMEIRO PASSO</p><h1>Vamos colocar o Solstreak no ar.</h1><p>O site está pronto, mas precisa ser conectado a um projeto Supabase para guardar os perfis e registros de toda a comunidade.</p><ol><li>Crie um projeto gratuito no Supabase.</li><li>Execute o arquivo <code>supabase/schema.sql</code> no SQL Editor.</li><li>Copie a URL e a chave anon para um arquivo <code>.env</code>, seguindo o <code>.env.example</code>.</li><li>Consulte o README para publicar na Vercel.</li></ol><p className="small">Não publique chaves secretas (service_role). A chave anon é própria para uso no navegador, com as políticas RLS deste projeto.</p></div></main>;
 
-  if (!session) return <main className="login-wrap"><div className="login-card"><div className="brand"><span className="brand-icon"><Sun size={22}/></span><span>solstreak</span></div><div className="hero-sun">☀️</div><p className="eyebrow">UMA CHAMA POR DIA</p><h1>Seu cuidado também<br/>pode virar hábito.</h1><p className="muted">Registre seu protetor solar, mantenha sua chama acesa e acompanhe a comunidade.</p><label htmlFor="nick">Escolha seu nickname</label><div className="nick-input"><span>@</span><input id="nick" value={nickname} maxLength={18} placeholder="seunome" onChange={e=>setNickname(e.target.value)} onKeyDown={e=>e.key==='Enter'&&enter()}/></div><button className="primary full" onClick={enter} disabled={busy}>{busy?'Entrando…':'Entrar na comunidade'} <ArrowUpRight size={17}/></button>{error&&<p className="error">{error}</p>}<p className="small center">Sem nome completo. Seu nickname e seus registros serão públicos.</p></div></main>;
+  if (!session) return <main className="login-wrap"><div className="login-card"><div className="brand"><span className="brand-icon"><Sun size={22}/></span><span>solstreak</span></div><div className="hero-sun">☀️</div><p className="eyebrow">UMA CHAMA POR DIA</p><h1>Seu cuidado também<br/>pode virar hábito.</h1><p className="muted">Registre seu protetor solar, mantenha sua chama acesa e acompanhe a comunidade.</p><div className="auth-switch"><button className={authMode==='signup'?'selected':''} onClick={()=>{setAuthMode('signup');setError('');}}>Criar conta</button><button className={authMode==='login'?'selected':''} onClick={()=>{setAuthMode('login');setError('');}}>Já tenho conta</button></div>{authMode==='signup'&&<><label htmlFor="nick">Escolha seu nickname</label><div className="nick-input"><span>@</span><input id="nick" value={nickname} maxLength={18} placeholder="seunome" onChange={e=>setNickname(e.target.value)}/></div></>}<label htmlFor="email">E-mail</label><input className="auth-input" id="email" type="email" autoComplete="email" value={email} placeholder="voce@exemplo.com" onChange={e=>setEmail(e.target.value)}/><label htmlFor="password">Senha</label><input className="auth-input" id="password" type="password" autoComplete={authMode==='signup'?'new-password':'current-password'} value={password} placeholder="Pelo menos 8 caracteres" onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==='Enter'&&enter()}/><button className="primary full" onClick={enter} disabled={busy}>{busy?'Aguarde…':authMode==='signup'?'Criar minha conta':'Entrar'} <ArrowUpRight size={17}/></button>{authMode==='login'&&<button className="text-action" onClick={recoverPassword} disabled={busy}>Esqueci minha senha</button>}{error&&<p className="error">{error}</p>}<p className="small center">Seu nickname e seus registros serão públicos. Seu e-mail e sua senha não serão exibidos.</p></div></main>;
 
   return <div className="app-shell">
     <header className="topbar"><div className="brand"><span className="brand-icon"><Sun size={22}/></span><span>solstreak</span></div><div className="top-user"><span className="avatar">{initials(profile?.nickname)}</span><b>@{profile?.nickname || 'perfil'}</b><button className="icon-btn" title="Sair" onClick={leave}><LogOut size={17}/></button></div></header>
