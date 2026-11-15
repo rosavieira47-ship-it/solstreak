@@ -38,3 +38,10 @@
 .goal-track{height:11px;border-radius:20px;background:#f2e6d2;overflow:hidden}
 .goal-fill{height:100%;border-radius:20px;background:linear-gradient(90deg,#e9a344,#f4c96e);transition:width .3s ease}
 .goal-note{font-size:11px;line-height:1.55;color:#927e66;margin:11px 0 0}
+
+
+/* Registro retroativo no calendário */
+.day-button{border:0;padding:0;background:transparent;font:inherit;cursor:pointer}
+.day-button:not(:disabled):hover{background:#fff0d1;color:#8a511d;box-shadow:inset 0 0 0 1px #e8bd7a}
+.day-button:disabled{cursor:default}
+.calendar-help{font-size:10px;line-height:1.5;color:#a18d73;margin:9px 0 0}
