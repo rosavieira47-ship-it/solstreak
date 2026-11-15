@@ -45,3 +45,10 @@
 .day-button:not(:disabled):hover{background:#fff0d1;color:#8a511d;box-shadow:inset 0 0 0 1px #e8bd7a}
 .day-button:disabled{cursor:default}
 .calendar-help{font-size:10px;line-height:1.5;color:#a18d73;margin:9px 0 0}
+
+
+/* Navegação entre meses do histórico */
+.month-navigation{display:flex;align-items:center;gap:5px}
+.month-nav-btn{width:27px;height:27px;display:grid;place-items:center;border-radius:8px;background:#fff7e9;color:#9b672f}
+.month-nav-btn:disabled{opacity:.3;cursor:default}
+.month-label{min-width:105px;text-align:center}
