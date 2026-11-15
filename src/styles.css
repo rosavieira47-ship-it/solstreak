@@ -52,3 +52,16 @@
 .month-nav-btn{width:27px;height:27px;display:grid;place-items:center;border-radius:8px;background:#fff7e9;color:#9b672f}
 .month-nav-btn:disabled{opacity:.3;cursor:default}
 .month-label{min-width:105px;text-align:center}
+
+
+/* Confirmação antes de registrar um dia no histórico */
+.confirm-backdrop{position:fixed;inset:0;z-index:20;background:#3d2b1c80;display:grid;place-items:center;padding:20px}
+.confirm-dialog{width:min(100%,370px);background:#fffdf8;border:1px solid #f0e5d2;border-radius:22px;padding:25px;box-shadow:0 20px 60px #3d2b1c35;text-align:center}
+.confirm-sun{display:block;font-size:34px;margin-bottom:10px}
+.confirm-dialog h2{font:800 19px Manrope,sans-serif;color:#52391f;margin:0}
+.confirm-dialog p{font-size:13px;line-height:1.55;color:#806b51;margin:12px 0 0}
+.confirm-dialog p strong{color:#68421b}
+.confirm-dialog .confirm-note{font-size:11px;color:#a18d73;margin-top:7px}
+.confirm-actions{display:flex;justify-content:center;gap:9px;margin-top:22px}
+.confirm-actions button{min-width:115px}
+.confirm-cancel{padding:12px 17px;border-radius:12px;background:#f5ecdf;color:#806747;font-size:12px;font-weight:800}
